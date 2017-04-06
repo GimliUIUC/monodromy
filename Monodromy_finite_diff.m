@@ -9,9 +9,10 @@
 function Monodromy_finite_diff
 
 %% Constants and parameters
-M = 0.625;
+M = 0.675;
 g = 9.81;
 Tst = 0.18;
+Tfl = 0.6;             % flight time
 z0 = 0.08;
 dz0 = 0;
 delta_z0 = 1e-2;
@@ -24,7 +25,8 @@ params.g = g;
 params.z0 = z0;
 params.dz0 = dz0;
 params.Tst = Tst;
-params.coeffFz = coeff_Fz;
+params.Tfl = Tfl;
+params.coeff_Fz = coeff_Fz;
 
 params_pos_z = params;
 params_pos_dz = params;
@@ -38,22 +40,33 @@ params_neg_dz.dz0 =    dz0 - delta_dz0;
 
 %% stance phase
 X0 = [z0;dz0];
-X0_pos_z =  [z0 + delta_z0;dz0];                % perturbed i.c.
-X0_pos_dz = [z0;dz0 + delta_dz0];               % perturbed i.c.
-X0_neg_z =  [z0 - delta_z0;dz0];                % perturbed i.c.
-X0_neg_dz = [z0;dz0 - delta_dz0];               % perturbed i.c.
+X0_pos_z =  [z0 + delta_z0; dz0];                % perturbed i.c.
+X0_pos_dz = [z0;            dz0 + delta_dz0];               % perturbed i.c.
+X0_neg_z =  [z0 - delta_z0; dz0];                % perturbed i.c.
+X0_neg_dz = [z0;            dz0 - delta_dz0];               % perturbed i.c.
 
-[t,X] =         ode45(@(t,X)dynamics_st(t,X,params),[0,Tst],X0);
-[t_pos_z,X_pos_z] = ode45(@(t,X)dynamics_st(t,X,params_pos_z),[0,Tst],X0_pos_z);
-[t_pos_dz,X_pos_dz] = ode45(@(t,X)dynamics_st(t,X,params_pos_dz),[0,Tst],X0_pos_dz);
-[t_neg_z,X_neg_z] = ode45(@(t,X)dynamics_st(t,X,params_neg_z),[0,Tst],X0_neg_z);
-[t_neg_dz,X_neg_dz] = ode45(@(t,X)dynamics_st(t,X,params_neg_dz),[0,Tst],X0_neg_dz);
+[t,X] =                 ode45(@(t,X)dynamics_st(t,X,params),[0,Tst],X0);
+[t_pos_z,X_pos_z] =     ode45(@(t,X)dynamics_st(t,X,params_pos_z),[0,Tst],X0_pos_z);
+[t_pos_dz,X_pos_dz] =   ode45(@(t,X)dynamics_st(t,X,params_pos_dz),[0,Tst],X0_pos_dz);
+[t_neg_z,X_neg_z] =     ode45(@(t,X)dynamics_st(t,X,params_neg_z),[0,Tst],X0_neg_z);
+[t_neg_dz,X_neg_dz] =   ode45(@(t,X)dynamics_st(t,X,params_neg_dz),[0,Tst],X0_neg_dz);
 
 tList = t;                  XList = X;
 tList_pos_z = t_pos_z;      XList_pos_z = X_pos_z;
 tList_pos_dz = t_pos_dz;    XList_pos_dz = X_pos_dz;
 tList_neg_z = t_neg_z;      XList_neg_z = X_neg_z;
 tList_neg_dz = t_neg_dz;    XList_neg_dz = X_neg_dz;
+
+%% Monodromy Matrix at the end of stance phase
+Q = zeros(2,2);
+Q(1,1) = (XList_pos_z(end,1) - XList_neg_z(end,1))/(2*delta_z0);
+Q(1,2) = (XList_pos_z(end,1) - XList_neg_z(end,1))/(2*delta_dz0);
+Q(2,1) = (XList_pos_dz(end,2) - XList_neg_dz(end,2))/(2*delta_z0);
+Q(2,2) = (XList_pos_dz(end,2) - XList_neg_dz(end,2))/(2*delta_dz0);
+
+
+Q = Q
+[eigVec,eigVal] = eig(Q)
 
 %% flight phase
 X0 = X(end,:);
@@ -64,11 +77,16 @@ X0_neg_dz = X_neg_dz(end,:);
 
 options = odeset('Events',@(t,X)apexEvent(t,X));
 
-[t,X] =         ode45(@(t,X)dynamics_fl(t,X,params),[Tst,100],X0,options);
-[t_pos_z,X_pos_z] = ode45(@(t,X)dynamics_fl(t,X,params_pos_z),[Tst,100],X0_pos_z,options);
-[t_pos_dz,X_pos_dz] = ode45(@(t,X)dynamics_fl(t,X,params_pos_dz),[Tst,100],X0_pos_dz,options);
-[t_neg_z,X_neg_z] = ode45(@(t,X)dynamics_fl(t,X,params_neg_z),[Tst,100],X0_neg_z,options);
-[t_neg_dz,X_neg_dz] = ode45(@(t,X)dynamics_fl(t,X,params_neg_dz),[Tst,100],X0_neg_dz,options);
+[t,X,te] =                      ode45(@(t,X)dynamics_fl(t,X,params),[Tst,100],X0,options);
+[t_pos_z,X_pos_z,te_pos_z] =    ode45(@(t,X)dynamics_fl(t,X,params_pos_z),[Tst,100],X0_pos_z,options);
+[t_pos_dz,X_pos_dz,te_pos_dz] = ode45(@(t,X)dynamics_fl(t,X,params_pos_dz),[Tst,100],X0_pos_dz,options);
+[t_neg_z,X_neg_z,te_neg_z] =    ode45(@(t,X)dynamics_fl(t,X,params_neg_z),[Tst,100],X0_neg_z,options);
+[t_neg_dz,X_neg_dz,te_neg_dz] = ode45(@(t,X)dynamics_fl(t,X,params_neg_dz),[Tst,100],X0_neg_dz);
+
+% te_pos_z = te_pos_z
+% te_pos_dz = te_pos_dz
+% te_neg_z = te_neg_z
+% te_neg_dz = te_neg_dz
 
 tList = [tList;t];                      XList = [XList;X];
 tList_pos_z = [tList_pos_z;t_pos_z];    XList_pos_z = [XList_pos_z;X_pos_z];
@@ -85,15 +103,15 @@ list.tList_neg_dz = tList_neg_dz;       list.XList_neg_dz = XList_neg_dz;
 plotStates(list)
 
 %% Monodromy matrix
-Q = zeros(2,2);
-Q(1,1) = (XList_pos_z(end,1) - XList_neg_z(end,1))/(2*delta_z0);
-Q(1,2) = (XList_pos_z(end,1) - XList_neg_z(end,1))/(2*delta_dz0);
-Q(2,1) = (XList_pos_dz(end,2) - XList_neg_dz(end,2))/(2*delta_z0);
-Q(2,2) = (XList_pos_dz(end,2) - XList_neg_dz(end,2))/(2*delta_dz0);
-
-
-Q = Q
-[eigVec,eigVal] = eig(Q)
+% Q = zeros(2,2);
+% Q(1,1) = (XList_pos_z(end,1) - XList_neg_z(end,1))/(2*delta_z0);
+% Q(1,2) = (XList_pos_z(end,1) - XList_neg_z(end,1))/(2*delta_dz0);
+% Q(2,1) = (XList_pos_dz(end,2) - XList_neg_dz(end,2))/(2*delta_z0);
+% Q(2,2) = (XList_pos_dz(end,2) - XList_neg_dz(end,2))/(2*delta_dz0);
+% 
+% 
+% Q = Q
+% [eigVec,eigVal] = eig(Q)
 
 
 

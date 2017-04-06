@@ -1,15 +1,15 @@
-function Xdot = dynamics_st(t,X,params)
+function Xdot = dynamics_st(t,X,P)
     %% decompose
     z = X(1);
     dz = X(2);
     
-    k = params.k;
-    g = params.g;
-    M = params.M;
-    z0 = params.z0;
-    dz0 = params.dz0;
-    Tst = params.Tst;
-    coeff_Fz = params.coeffFz;
+    k = P.k;
+    g = P.g;
+    M = P.M;
+    z0 = P.z0;
+    dz0 = P.dz0;
+    Tst = P.Tst;
+    coeff_Fz = P.coeff_Fz;
     
     %% desired velocity
     coeff_ddz = coeff_Fz/M - g;
